@@ -88,6 +88,8 @@ Delete a todo.
 
 ## Running Tests
 
+### Unit and Integration Tests
+
 Run all tests from the repository root:
 
 ```bash
@@ -105,6 +107,43 @@ Run tests in a specific project:
 ```bash
 dotnet test tests/PlaywrightMcpExploration.Tests
 ```
+
+### E2E Tests with Playwright
+
+End-to-end tests are located in `tests/PlaywrightMcpExploration.Tests/E2E/`.
+
+**First Time Setup:**
+```bash
+# Install Playwright browsers (only needed once)
+./install-playwright.sh
+
+# Or manually:
+cd tests/PlaywrightMcpExploration.Tests
+dotnet build
+pwsh bin/Debug/net10.0/playwright.ps1 install chromium
+```
+
+**Running E2E Tests:**
+```bash
+# Run all E2E tests
+dotnet test --filter "FullyQualifiedName~E2E"
+
+# Run a specific E2E test
+dotnet test --filter "FullyQualifiedName~Should_Create_New_Todo_Successfully"
+```
+
+The E2E tests automatically start the web application before running. See [E2E README](tests/PlaywrightMcpExploration.Tests/E2E/README.md) for more details.
+
+## Test Coverage
+
+- **Unit Tests**: Models, Repository, DbContext
+- **Integration Tests**: API endpoints
+- **E2E Tests**: Complete user workflows through the web UI
+  - Application loading
+  - CRUD operations (Create, Read, Update, Delete)
+  - Form validation
+  - UI state updates
+  - Complete workflow scenarios
 
 ## Project Structure
 
