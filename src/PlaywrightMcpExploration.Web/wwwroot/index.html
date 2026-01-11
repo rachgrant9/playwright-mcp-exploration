@@ -67,10 +67,86 @@
             border-radius: 5px;
             border-left: 4px solid #f44336;
         }
+        
+        .todo-form {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .todo-form h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        
+        .form-group button {
+            background-color: #2196F3;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .form-group button:hover {
+            background-color: #1976D2;
+        }
+        
+        .form-group button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .todo-checkbox {
+            margin-right: 10px;
+            cursor: pointer;
+            width: 20px;
+            height: 20px;
+        }
+        
+        .todo-content {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+        
+        .completed-text {
+            text-decoration: line-through;
+            color: #999;
+        }
     </style>
 </head>
 <body>
     <h1>Todo List</h1>
+    
+    <div class="todo-form">
+        <h2>Add New Todo</h2>
+        <form id="addTodoForm">
+            <div class="form-group">
+                <input type="text" id="todoTitle" placeholder="Enter todo title" required>
+            </div>
+            <div class="form-group">
+                <button type="submit" id="addButton">Add Todo</button>
+            </div>
+        </form>
+    </div>
+    
     <div id="app">
         <p class="loading">Loading todos...</p>
     </div>
@@ -89,7 +165,7 @@
                 const todos = await response.json();
                 
                 if (todos.length === 0) {
-                    appDiv.innerHTML = '<p>No todos found.</p>';
+                    appDiv.innerHTML = '<p>No todos found. Add one above!</p>';
                     return;
                 }
                 
@@ -100,15 +176,27 @@
                     const li = document.createElement('li');
                     li.className = 'todo-item';
                     
+                    const content = document.createElement('div');
+                    content.className = 'todo-content';
+                    
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'todo-checkbox';
+                    checkbox.checked = todo.isCompleted;
+                    checkbox.addEventListener('change', () => toggleTodo(todo.id, checkbox.checked));
+                    
                     const title = document.createElement('span');
-                    title.className = 'todo-title';
+                    title.className = `todo-title ${todo.isCompleted ? 'completed-text' : ''}`;
                     title.textContent = todo.title;
+                    
+                    content.appendChild(checkbox);
+                    content.appendChild(title);
                     
                     const status = document.createElement('span');
                     status.className = `todo-status ${todo.isCompleted ? 'completed' : 'pending'}`;
                     status.textContent = todo.isCompleted ? 'Completed' : 'Pending';
                     
-                    li.appendChild(title);
+                    li.appendChild(content);
                     li.appendChild(status);
                     todosList.appendChild(li);
                 });
@@ -121,6 +209,78 @@
                 console.error('Error fetching todos:', error);
             }
         }
+        
+        async function addTodo(title) {
+            try {
+                const response = await fetch('/api/todos', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ title: title })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                await loadTodos();
+                return true;
+            } catch (error) {
+                console.error('Error adding todo:', error);
+                alert(`Error adding todo: ${error.message}`);
+                return false;
+            }
+        }
+        
+        async function toggleTodo(id, isCompleted) {
+            try {
+                const response = await fetch(`/api/todos/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ isCompleted: isCompleted })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                await loadTodos();
+            } catch (error) {
+                console.error('Error updating todo:', error);
+                alert(`Error updating todo: ${error.message}`);
+                await loadTodos();
+            }
+        }
+        
+        // Handle form submission
+        document.getElementById('addTodoForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const titleInput = document.getElementById('todoTitle');
+            const addButton = document.getElementById('addButton');
+            const title = titleInput.value.trim();
+            
+            if (!title) {
+                return;
+            }
+            
+            // Disable form during submission
+            addButton.disabled = true;
+            addButton.textContent = 'Adding...';
+            
+            const success = await addTodo(title);
+            
+            if (success) {
+                titleInput.value = '';
+            }
+            
+            // Re-enable form
+            addButton.disabled = false;
+            addButton.textContent = 'Add Todo';
+        });
         
         // Load todos when page loads
         loadTodos();
