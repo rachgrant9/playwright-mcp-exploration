@@ -14,6 +14,30 @@ builder.Services.AddScoped<ITodoRepository, TodoRepository>();
 
 var app = builder.Build();
 
+// Global exception handling middleware
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        context.Response.ContentType = "application/json";
+        
+        var error = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
+        
+        if (error != null)
+        {
+            var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+            logger.LogError(error.Error, "Unhandled exception occurred");
+            
+            await context.Response.WriteAsJsonAsync(new 
+            { 
+                error = "An unexpected error occurred. Please try again later.",
+                details = app.Environment.IsDevelopment() ? error.Error.Message : null
+            });
+        }
+    });
+});
+
 // Enable static files and default files
 app.UseDefaultFiles();
 app.UseStaticFiles();
@@ -29,7 +53,7 @@ app.MapGet("/api/todos", async (ITodoRepository repository) =>
 app.MapGet("/api/todos/{id:int}", async (int id, ITodoRepository repository) =>
 {
     var todo = await repository.GetByIdAsync(id);
-    return todo is null ? Results.NotFound() : Results.Ok(todo);
+    return todo is null ? Results.NotFound(new { error = $"Todo with id {id} not found" }) : Results.Ok(todo);
 });
 
 // POST /api/todos - Create a new todo
@@ -41,7 +65,8 @@ app.MapPost("/api/todos", async (CreateTodoRequest request, ITodoRepository repo
     
     if (!Validator.TryValidateObject(request, validationContext, validationResults, validateAllProperties: true))
     {
-        return Results.BadRequest(validationResults);
+        var errors = validationResults.Select(v => v.ErrorMessage).ToList();
+        return Results.BadRequest(new { error = "Validation failed", errors });
     }
 
     // Create todo
@@ -66,7 +91,15 @@ app.MapPut("/api/todos/{id:int}", async (int id, UpdateTodoRequest request, ITod
     
     if (!Validator.TryValidateObject(request, validationContext, validationResults, validateAllProperties: true))
     {
-        return Results.BadRequest(validationResults);
+        var errors = validationResults.Select(v => v.ErrorMessage).ToList();
+        return Results.BadRequest(new { error = "Validation failed", errors });
+    }
+
+    // Get existing todo first
+    var existingTodo = await repository.GetByIdAsync(id);
+    if (existingTodo is null)
+    {
+        return Results.NotFound(new { error = $"Todo with id {id} not found" });
     }
 
     // Update todo
@@ -74,19 +107,19 @@ app.MapPut("/api/todos/{id:int}", async (int id, UpdateTodoRequest request, ITod
     {
         Title = request.Title,
         IsCompleted = request.IsCompleted,
-        CreatedAt = DateTime.UtcNow // This will be overwritten by repository
+        CreatedAt = existingTodo.CreatedAt
     };
 
     var updatedTodo = await repository.UpdateAsync(id, todo);
     
-    return updatedTodo is null ? Results.NotFound() : Results.Ok(updatedTodo);
+    return Results.Ok(updatedTodo);
 });
 
 // DELETE /api/todos/{id} - Delete a todo
 app.MapDelete("/api/todos/{id:int}", async (int id, ITodoRepository repository) =>
 {
     var deleted = await repository.DeleteAsync(id);
-    return deleted ? Results.NoContent() : Results.NotFound();
+    return deleted ? Results.NoContent() : Results.NotFound(new { error = $"Todo with id {id} not found" });
 });
 
 app.Run();

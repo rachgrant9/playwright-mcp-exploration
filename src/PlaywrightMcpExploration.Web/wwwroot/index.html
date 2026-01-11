@@ -68,6 +68,21 @@
             border-left: 4px solid #f44336;
         }
         
+        .validation-error {
+            color: #f44336;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+        
+        .validation-error.show {
+            display: block;
+        }
+        
+        .form-group input.invalid {
+            border-color: #f44336;
+        }
+        
         .todo-form {
             background: white;
             padding: 20px;
@@ -159,7 +174,8 @@
         <h2>Add New Todo</h2>
         <form id="addTodoForm">
             <div class="form-group">
-                <input type="text" id="todoTitle" placeholder="Enter todo title" required>
+                <input type="text" id="todoTitle" placeholder="Enter todo title" required maxlength="200">
+                <div id="titleError" class="validation-error"></div>
             </div>
             <div class="form-group">
                 <button type="submit" id="addButton">Add Todo</button>
@@ -247,36 +263,49 @@
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    const errorData = await response.json();
+                    const errorMessage = errorData.errors ? errorData.errors.join(', ') : errorData.error || 'Failed to add todo';
+                    throw new Error(errorMessage);
                 }
                 
                 await loadTodos();
                 return true;
             } catch (error) {
                 console.error('Error adding todo:', error);
-                alert(`Error adding todo: ${error.message}`);
+                showError('titleError', error.message);
                 return false;
             }
         }
         
         async function toggleTodo(id, isCompleted) {
             try {
+                // Get existing todo to preserve title
+                const getTodoResponse = await fetch(`/api/todos/${id}`);
+                if (!getTodoResponse.ok) {
+                    throw new Error('Failed to fetch todo');
+                }
+                const existingTodo = await getTodoResponse.json();
+                
                 const response = await fetch(`/api/todos/${id}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ isCompleted: isCompleted })
+                    body: JSON.stringify({ 
+                        title: existingTodo.title,
+                        isCompleted: isCompleted 
+                    })
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to update todo');
                 }
                 
                 await loadTodos();
             } catch (error) {
                 console.error('Error updating todo:', error);
-                alert(`Error updating todo: ${error.message}`);
+                showAlert(`Error updating todo: ${error.message}`);
                 await loadTodos();
             }
         }
@@ -292,14 +321,55 @@
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to delete todo');
                 }
                 
                 await loadTodos();
             } catch (error) {
                 console.error('Error deleting todo:', error);
-                alert(`Error deleting todo: ${error.message}`);
+                showAlert(`Error deleting todo: ${error.message}`);
             }
+        }
+        
+        // Helper function to display validation errors
+        function showError(elementId, message) {
+            const errorElement = document.getElementById(elementId);
+            errorElement.textContent = message;
+            errorElement.classList.add('show');
+            
+            const inputElement = document.getElementById(elementId.replace('Error', ''));
+            if (inputElement) {
+                inputElement.classList.add('invalid');
+            }
+        }
+        
+        // Helper function to clear validation errors
+        function clearError(elementId) {
+            const errorElement = document.getElementById(elementId);
+            errorElement.textContent = '';
+            errorElement.classList.remove('show');
+            
+            const inputElement = document.getElementById(elementId.replace('Error', ''));
+            if (inputElement) {
+                inputElement.classList.remove('invalid');
+            }
+        }
+        
+        // Helper function to show alert messages
+        function showAlert(message) {
+            alert(message);
+        }
+        
+        // Validate todo title
+        function validateTitle(title) {
+            if (!title || title.trim().length === 0) {
+                return 'Title is required';
+            }
+            if (title.length > 200) {
+                return 'Title must be 200 characters or less';
+            }
+            return null;
         }
         
         // Handle form submission
@@ -310,7 +380,13 @@
             const addButton = document.getElementById('addButton');
             const title = titleInput.value.trim();
             
-            if (!title) {
+            // Clear previous errors
+            clearError('titleError');
+            
+            // Client-side validation
+            const validationError = validateTitle(title);
+            if (validationError) {
+                showError('titleError', validationError);
                 return;
             }
             
@@ -322,11 +398,17 @@
             
             if (success) {
                 titleInput.value = '';
+                clearError('titleError');
             }
             
             // Re-enable form
             addButton.disabled = false;
             addButton.textContent = 'Add Todo';
+        });
+        
+        // Clear validation errors on input
+        document.getElementById('todoTitle').addEventListener('input', () => {
+            clearError('titleError');
         });
         
         // Load todos when page loads
