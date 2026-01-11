@@ -1,0 +1,89 @@
+name: Deploy to Azure
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: playwright-mcp-exploration
+  AZURE_WEBAPP_PACKAGE_PATH: './src/PlaywrightMcpExploration.Web'
+  DOTNET_VERSION: '10.0.x'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore
+    
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+    
+    - name: Run unit tests
+      run: dotnet test --configuration Release --no-build --verbosity normal
+    
+    - name: Publish
+      run: dotnet publish ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/PlaywrightMcpExploration.Web.csproj --configuration Release --output ./publish
+    
+    - name: Deploy to Azure Web App
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        package: ./publish
+  
+  verify-deployment:
+    needs: build-and-deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: lts/*
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Install Playwright Browsers
+      run: npx playwright install --with-deps chromium
+    
+    - name: Wait for deployment to be ready
+      run: |
+        echo "Waiting for app to be ready..."
+        sleep 30
+        for i in {1..10}; do
+          if curl -f -s https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net > /dev/null; then
+            echo "App is ready!"
+            exit 0
+          fi
+          echo "Attempt $i: App not ready yet, waiting..."
+          sleep 10
+        done
+        echo "App failed to become ready"
+        exit 1
+    
+    - name: Run E2E tests against production
+      run: npx playwright test
+      env:
+        PLAYWRIGHT_BASE_URL: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net
+    
+    - name: Upload test results
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: playwright-report-production
+        path: playwright-report/
+        retention-days: 30

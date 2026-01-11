@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Todo Application', () => {
   test('should add a new todo and mark it as complete', async ({ page }) => {
     // Navigate to the application
-    await page.goto('http://localhost:5098');
+    await page.goto('/');
 
     // Verify the page loaded correctly
     await expect(page).toHaveTitle('Todo List');
