@@ -14,7 +14,9 @@ builder.Services.AddScoped<ITodoRepository, TodoRepository>();
 
 var app = builder.Build();
 
-app.MapGet("/", () => "Hello World!");
+// Enable static files and default files
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 // GET /api/todos - Get all todos
 app.MapGet("/api/todos", async (ITodoRepository repository) =>
@@ -55,6 +57,38 @@ app.MapPost("/api/todos", async (CreateTodoRequest request, ITodoRepository repo
     return Results.Created($"/api/todos/{createdTodo.Id}", createdTodo);
 });
 
+// PUT /api/todos/{id} - Update a todo
+app.MapPut("/api/todos/{id:int}", async (int id, UpdateTodoRequest request, ITodoRepository repository) =>
+{
+    // Validate request
+    var validationResults = new List<ValidationResult>();
+    var validationContext = new ValidationContext(request);
+    
+    if (!Validator.TryValidateObject(request, validationContext, validationResults, validateAllProperties: true))
+    {
+        return Results.BadRequest(validationResults);
+    }
+
+    // Update todo
+    var todo = new Todo
+    {
+        Title = request.Title,
+        IsCompleted = request.IsCompleted,
+        CreatedAt = DateTime.UtcNow // This will be overwritten by repository
+    };
+
+    var updatedTodo = await repository.UpdateAsync(id, todo);
+    
+    return updatedTodo is null ? Results.NotFound() : Results.Ok(updatedTodo);
+});
+
+// DELETE /api/todos/{id} - Delete a todo
+app.MapDelete("/api/todos/{id:int}", async (int id, ITodoRepository repository) =>
+{
+    var deleted = await repository.DeleteAsync(id);
+    return deleted ? Results.NoContent() : Results.NotFound();
+});
+
 app.Run();
 
 // Make Program class accessible for testing
@@ -62,6 +96,16 @@ public partial class Program { }
 
 // Request DTO for creating a todo
 public record CreateTodoRequest
+{
+    [Required(ErrorMessage = "Title is required")]
+    [StringLength(200, MinimumLength = 1, ErrorMessage = "Title must be between 1 and 200 characters")]
+    public required string Title { get; init; }
+    
+    public bool IsCompleted { get; init; }
+}
+
+// Request DTO for updating a todo
+public record UpdateTodoRequest
 {
     [Required(ErrorMessage = "Title is required")]
     [StringLength(200, MinimumLength = 1, ErrorMessage = "Title must be between 1 and 200 characters")]

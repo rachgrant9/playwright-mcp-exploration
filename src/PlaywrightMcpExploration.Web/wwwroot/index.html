@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo List</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        h1 {
+            color: #333;
+        }
+        
+        #todos {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .todo-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .todo-title {
+            font-size: 16px;
+            color: #333;
+        }
+        
+        .todo-status {
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .completed {
+            background-color: #4caf50;
+            color: white;
+        }
+        
+        .pending {
+            background-color: #ff9800;
+            color: white;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #666;
+        }
+        
+        .error {
+            color: #f44336;
+            padding: 15px;
+            background: white;
+            border-radius: 5px;
+            border-left: 4px solid #f44336;
+        }
+    </style>
+</head>
+<body>
+    <h1>Todo List</h1>
+    <div id="app">
+        <p class="loading">Loading todos...</p>
+    </div>
+
+    <script>
+        async function loadTodos() {
+            const appDiv = document.getElementById('app');
+            
+            try {
+                const response = await fetch('/api/todos');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const todos = await response.json();
+                
+                if (todos.length === 0) {
+                    appDiv.innerHTML = '<p>No todos found.</p>';
+                    return;
+                }
+                
+                const todosList = document.createElement('ul');
+                todosList.id = 'todos';
+                
+                todos.forEach(todo => {
+                    const li = document.createElement('li');
+                    li.className = 'todo-item';
+                    
+                    const title = document.createElement('span');
+                    title.className = 'todo-title';
+                    title.textContent = todo.title;
+                    
+                    const status = document.createElement('span');
+                    status.className = `todo-status ${todo.isCompleted ? 'completed' : 'pending'}`;
+                    status.textContent = todo.isCompleted ? 'Completed' : 'Pending';
+                    
+                    li.appendChild(title);
+                    li.appendChild(status);
+                    todosList.appendChild(li);
+                });
+                
+                appDiv.innerHTML = '';
+                appDiv.appendChild(todosList);
+                
+            } catch (error) {
+                appDiv.innerHTML = `<div class="error">Error loading todos: ${error.message}</div>`;
+                console.error('Error fetching todos:', error);
+            }
+        }
+        
+        // Load todos when page loads
+        loadTodos();
+    </script>
+</body>
+</html>

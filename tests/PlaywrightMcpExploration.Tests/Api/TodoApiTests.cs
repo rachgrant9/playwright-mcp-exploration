@@ -202,4 +202,119 @@ public class TodoApiTests : IClassFixture<WebApplicationFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
+
+    [Fact]
+    public async Task UpdateTodo_WhenTodoExists_ReturnsOkWithUpdatedTodo()
+    {
+        // Arrange
+        using var scope = _factory.Services.CreateScope();
+        var repository = scope.ServiceProvider.GetRequiredService<ITodoRepository>();
+        
+        var createdTodo = await repository.CreateAsync(new Todo 
+        { 
+            Title = "Original Title", 
+            IsCompleted = false,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        var updateRequest = new
+        {
+            Title = "Updated Title",
+            IsCompleted = true
+        };
+
+        // Act
+        var response = await _client.PutAsJsonAsync($"/api/todos/{createdTodo.Id}", updateRequest);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var updatedTodo = await response.Content.ReadFromJsonAsync<Todo>();
+        updatedTodo.Should().NotBeNull();
+        updatedTodo!.Id.Should().Be(createdTodo.Id);
+        updatedTodo.Title.Should().Be("Updated Title");
+        updatedTodo.IsCompleted.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task UpdateTodo_WhenTodoDoesNotExist_ReturnsNotFound()
+    {
+        // Arrange
+        var nonExistentId = 9999;
+        var updateRequest = new
+        {
+            Title = "Updated Title",
+            IsCompleted = true
+        };
+
+        // Act
+        var response = await _client.PutAsJsonAsync($"/api/todos/{nonExistentId}", updateRequest);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task UpdateTodo_WithInvalidData_ReturnsBadRequest()
+    {
+        // Arrange
+        using var scope = _factory.Services.CreateScope();
+        var repository = scope.ServiceProvider.GetRequiredService<ITodoRepository>();
+        
+        var createdTodo = await repository.CreateAsync(new Todo 
+        { 
+            Title = "Original Title", 
+            IsCompleted = false,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        var invalidRequest = new
+        {
+            Title = "", // Empty title is invalid
+            IsCompleted = true
+        };
+
+        // Act
+        var response = await _client.PutAsJsonAsync($"/api/todos/{createdTodo.Id}", invalidRequest);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task DeleteTodo_WhenTodoExists_ReturnsNoContent()
+    {
+        // Arrange
+        using var scope = _factory.Services.CreateScope();
+        var repository = scope.ServiceProvider.GetRequiredService<ITodoRepository>();
+        
+        var createdTodo = await repository.CreateAsync(new Todo 
+        { 
+            Title = "Todo to Delete", 
+            IsCompleted = false,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        // Act
+        var response = await _client.DeleteAsync($"/api/todos/{createdTodo.Id}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        
+        // Verify todo is actually deleted
+        var getResponse = await _client.GetAsync($"/api/todos/{createdTodo.Id}");
+        getResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task DeleteTodo_WhenTodoDoesNotExist_ReturnsNotFound()
+    {
+        // Arrange
+        var nonExistentId = 9999;
+
+        // Act
+        var response = await _client.DeleteAsync($"/api/todos/{nonExistentId}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
 }
