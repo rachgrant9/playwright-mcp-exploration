@@ -127,4 +127,79 @@ public class TodoApiTests : IClassFixture<WebApplicationFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
+
+    [Fact]
+    public async Task CreateTodo_WithValidData_ReturnsCreatedWithLocationHeader()
+    {
+        // Arrange
+        var newTodo = new
+        {
+            Title = "New Todo",
+            IsCompleted = false
+        };
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/todos", newTodo);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.Headers.Location.Should().NotBeNull();
+        
+        var createdTodo = await response.Content.ReadFromJsonAsync<Todo>();
+        createdTodo.Should().NotBeNull();
+        createdTodo!.Id.Should().BeGreaterThan(0);
+        createdTodo.Title.Should().Be("New Todo");
+        createdTodo.IsCompleted.Should().BeFalse();
+        createdTodo.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task CreateTodo_WithEmptyTitle_ReturnsBadRequest()
+    {
+        // Arrange
+        var invalidTodo = new
+        {
+            Title = "",
+            IsCompleted = false
+        };
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/todos", invalidTodo);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task CreateTodo_WithTitleTooLong_ReturnsBadRequest()
+    {
+        // Arrange
+        var invalidTodo = new
+        {
+            Title = new string('A', 201), // Exceeds 200 character limit
+            IsCompleted = false
+        };
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/todos", invalidTodo);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task CreateTodo_WithoutTitle_ReturnsBadRequest()
+    {
+        // Arrange
+        var invalidTodo = new
+        {
+            IsCompleted = false
+        };
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/todos", invalidTodo);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
 }
