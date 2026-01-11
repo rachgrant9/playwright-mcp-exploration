@@ -110,29 +110,28 @@ dotnet test tests/PlaywrightMcpExploration.Tests
 
 ### E2E Tests with Playwright
 
-End-to-end tests are located in `tests/PlaywrightMcpExploration.Tests/E2E/`.
+End-to-end tests are located in `e2e/` and written in TypeScript.
 
 **First Time Setup:**
 ```bash
-# Install Playwright browsers (only needed once)
-./install-playwright.sh
-
-# Or manually:
-cd tests/PlaywrightMcpExploration.Tests
-dotnet build
-pwsh bin/Debug/net10.0/playwright.ps1 install chromium
+# Install dependencies and Playwright browsers (only needed once)
+npm install
+npx playwright install
 ```
 
 **Running E2E Tests:**
 ```bash
 # Run all E2E tests
-dotnet test --filter "FullyQualifiedName~E2E"
+npx playwright test
 
-# Run a specific E2E test
-dotnet test --filter "FullyQualifiedName~Should_Create_New_Todo_Successfully"
+# Run a specific test file
+npx playwright test e2e/todo-app.spec.ts
+
+# Run tests in UI mode
+npx playwright test --ui
 ```
 
-The E2E tests automatically start the web application before running. See [E2E README](tests/PlaywrightMcpExploration.Tests/E2E/README.md) for more details.
+The E2E tests automatically start the web application before running.
 
 ## Test Coverage
 
