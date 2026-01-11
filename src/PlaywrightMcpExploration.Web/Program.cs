@@ -72,7 +72,7 @@ app.MapPost("/api/todos", async (CreateTodoRequest request, ITodoRepository repo
     // Create todo
     var todo = new Todo
     {
-        Title = request.Title,
+        Title = request.Title!,
         IsCompleted = request.IsCompleted,
         CreatedAt = DateTime.UtcNow
     };
@@ -105,7 +105,7 @@ app.MapPut("/api/todos/{id:int}", async (int id, UpdateTodoRequest request, ITod
     // Update todo
     var todo = new Todo
     {
-        Title = request.Title,
+        Title = request.Title!,
         IsCompleted = request.IsCompleted,
         CreatedAt = existingTodo.CreatedAt
     };
@@ -132,7 +132,7 @@ public record CreateTodoRequest
 {
     [Required(ErrorMessage = "Title is required")]
     [StringLength(200, MinimumLength = 1, ErrorMessage = "Title must be between 1 and 200 characters")]
-    public required string Title { get; init; }
+    public string? Title { get; init; }
     
     public bool IsCompleted { get; init; }
 }
@@ -142,7 +142,7 @@ public record UpdateTodoRequest
 {
     [Required(ErrorMessage = "Title is required")]
     [StringLength(200, MinimumLength = 1, ErrorMessage = "Title must be between 1 and 200 characters")]
-    public required string Title { get; init; }
+    public string? Title { get; init; }
     
     public bool IsCompleted { get; init; }
 }
