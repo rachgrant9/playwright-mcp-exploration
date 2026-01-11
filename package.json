@@ -1,0 +1,17 @@
+{
+  "name": "playwright-mcp-exploration",
+  "version": "1.0.0",
+  "description": "A simple .NET 10 TODO application with a RESTful API and web UI. This is an MVP built following TDD principles, KISS approach, and SOLID design.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "@types/node": "^25.0.6"
+  }
+}
