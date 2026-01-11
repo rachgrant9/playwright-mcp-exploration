@@ -65,7 +65,7 @@ jobs:
         echo "Waiting for app to be ready..."
         sleep 30
         for i in {1..10}; do
-          if curl -f -s https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net > /dev/null; then
+          if curl -f -s https://playwright-mcp-exploration-bkdehugue7g3g6eb.ukwest-01.azurewebsites.net > /dev/null; then
             echo "App is ready!"
             exit 0
           fi
@@ -78,7 +78,7 @@ jobs:
     - name: Run E2E tests against production
       run: npx playwright test
       env:
-        PLAYWRIGHT_BASE_URL: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net
+        PLAYWRIGHT_BASE_URL: https://playwright-mcp-exploration-bkdehugue7g3g6eb.ukwest-01.azurewebsites.net
     
     - name: Upload test results
       if: ${{ !cancelled() }}
